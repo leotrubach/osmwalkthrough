@@ -6,8 +6,6 @@ from geopy.distance import geodesic
 
 from utils import pairs
 
-FILE_NAME = "/home/leo/Documents/route-2021-09-19.osm"
-
 
 class Node(NamedTuple):
     id: int
@@ -47,14 +45,6 @@ def parse(xml_file):
 
 
 def to_csv(nodes: Dict[int, Node], ways: Dict[int, Way], csv_file_name):
-    # * Start node ID
-    #     * End node ID
-    #     * Length in meters
-    #     * Edge name or ID
-    #     * Start longitude, for example 18.4167
-    #     * Start latitude, for example -33.9167
-    #     * End longitude
-    #     * End latitude
     with open(csv_file_name, "w") as csv_file:
         writer = csv.writer(csv_file)
         edge_id = 1
