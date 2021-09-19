@@ -30,7 +30,7 @@ def import_csv_graph(file):
         try:
             start_node = row[0]
             end_node = row[1]
-            length = float(row[2])
+            length = int(row[2])
             id = row[3]
             start_lon, start_lat, end_lon, end_lat = map(float, row[4:8])
             graph.add_edge(start_node, end_node, weight=length, id=id, label=id)
@@ -54,7 +54,7 @@ def graph_components(graph):
     return components
 
 
-def odd_graph(graph):
+def odd_graph(graph, source, destination):
     """
     Given a graph G, construct a graph containing only the vertices with odd degree from G. The resulting graph is
     fully connected, with each weight being the shortest path between the nodes in G.
@@ -62,17 +62,17 @@ def odd_graph(graph):
     Complexity: O(V'*(E + V log(V)) )
     """
     result = nx.Graph()
-    odd_nodes = [n for n in graph.nodes() if graph.degree(n) % 2 == 1]
-    for u in odd_nodes:
+    odd_nodes = [n for n in graph.nodes() if graph.degree(n) % 2 == 1 if n not in (source, destination)]
+    for odd_node in odd_nodes:
         # We calculate the shortest paths twice here, but the overall performance hit is low
-        paths = nx.shortest_path(graph, source=u, weight="weight")
-        lengths = nx.shortest_path_length(graph, source=u, weight="weight")
-        for v in odd_nodes:
-            if u <= v:
+        paths = nx.shortest_path(graph, source=odd_node, weight="weight")
+        lengths = nx.shortest_path_length(graph, source=odd_node, weight="weight")
+        for other_odd_node in odd_nodes:
+            if odd_node <= other_odd_node:
                 # We only add each edge once
                 continue
             # The edge weights are negative for the purpose of max_weight_matching (we want the minimum weight)
-            result.add_edge(u, v, weight=-lengths[v], path=paths[v])
+            result.add_edge(odd_node, other_odd_node, weight=-lengths[other_odd_node], path=paths[other_odd_node])
 
     return result
 
@@ -245,18 +245,18 @@ def eulerian_path(graph, source=None):
     nodes = []
     for u, v in circuit:
         nodes.append(u)
-    # Close the loop
-    nodes.append(circuit[0][0])
+    # Append last item
+    nodes.append(circuit[-1][1])
     return nodes
 
 
-def chinese_postman_paths(graph, n=20, source=None):
+def chinese_postman_paths(graph, source, destination, n=20):
     """
     Given a graph, return a list of node id's forming the shortest chinese postman path.
     """
 
     # Find all the nodes with an odd degree, and create a graph containing only them
-    odd = odd_graph(graph)
+    odd = odd_graph(graph, source, destination)
 
     # Find the best matching of pairs of odd nodes
     matchings = find_matchings(odd, n)
@@ -273,38 +273,23 @@ def chinese_postman_paths(graph, n=20, source=None):
     return paths
 
 
-def single_chinese_postman_path(graph):
-    """
-    Given a graph, return a list of node id's forming the shortest chinese postman path.
-
-    If we assume V' (number of nodes with odd degree) is at least some constant fraction of V (total number of nodes),
-    say 10%, the overall complexity is O(V^3).
-    """
-
-    # Build a fully-connected graph containing only the odd edges.  Complexity: O(V'*(E + V log(V)) )
-    odd = odd_graph(graph)
-
-    # Find the best matching of pairs of odd nodes. Complexity: O(V'^3)
-    matching = nx.max_weight_matching(odd, True)
-
-    # Complexity of the remainder is less approximately O(E)
-    eulerian_graph = build_eulerian_graph(graph, odd, matching)
-    nodes = eulerian_path(eulerian_graph)
-
-    return eulerian_graph, nodes
-
-
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input CSV file", type=argparse.FileType("r"))
+    parser.add_argument("source", help="Source node id")
+    parser.add_argument("destination", help="Destination node id")
     parser.add_argument("--gpx", help="GPX output file", type=argparse.FileType("w"))
     parser.add_argument("--csv", help="CSV output file", type=argparse.FileType("w"))
-    parser.add_argument("--source", help="Source node id", type=str, default=None)
+
     args = parser.parse_args()
 
     graph = import_csv_graph(args.input)
+    if graph.degree[args.source] != 1:
+        raise RuntimeError("Source must be vertex with degree 1")
+    if graph.degree[args.destination] != 1:
+        raise RuntimeError("Destination must be vertex with degree 1")
     components = graph_components(graph)
     if len(components) == 0:
         raise ValueError("No graph components found; check input file")
@@ -312,7 +297,7 @@ if __name__ == "__main__":
     # Only use the largest component
     component = components[0]
 
-    paths = chinese_postman_paths(component, n=5, source=args.source)
+    paths = chinese_postman_paths(component, args.source, args.destination, n=1)
 
     for eulerian_graph, nodes in paths:
 
@@ -333,3 +318,4 @@ if __name__ == "__main__":
 
     if args.csv:
         write_csv(graph, nodes, args.csv)
+

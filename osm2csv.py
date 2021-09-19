@@ -53,7 +53,7 @@ def to_csv(nodes: Dict[int, Node], ways: Dict[int, Way], csv_file_name):
                 writer.writerow([
                     start_node.id,
                     end_node.id,
-                    start_node.distance_to(end_node),
+                    int(start_node.distance_to(end_node)),
                     edge_id,
                     start_node.lon,
                     start_node.lat,
