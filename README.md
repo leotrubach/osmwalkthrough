@@ -32,7 +32,7 @@ This command will produce a CSV file with graph information and edge distances
 
 2) Run  
 ```
-python cpp.py <source_id> <destination_id> <csvfile> --gpx <gpxfile>`
+python cpp.py <source_id> <destination_id> <csvfile> --gpx <gpxfile>
 ```
 where
 - *source_id* is the id of starting point you wrote down on step 2 of previous section
