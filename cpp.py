@@ -5,47 +5,6 @@ import xml.dom.minidom as minidom
 from utils import pairs
 
 
-def import_csv_graph(file):
-    """
-    Example:
-
-    import_csv_graph(open("test.csv", "rb"))
-
-    Does not handle multigraphs yet (more than 1 edge between the same 2 nodes).
-
-    Each row must have the following (in this order):
-
-    * Start node ID
-    * End node ID
-    * Length in meters
-    * Edge name or ID
-    * Start longitude, for example 18.4167
-    * Start latitude, for example -33.9167
-    * End longitude
-    * End latitude
-    """
-    reader = csv.reader(file)
-    graph = nx.Graph()
-    for row_number, row in enumerate(reader):
-        try:
-            start_node = row[0]
-            end_node = row[1]
-            length = int(row[2])
-            id = row[3]
-            start_lon, start_lat, end_lon, end_lat = map(float, row[4:8])
-            graph.add_edge(start_node, end_node, weight=length, id=id, label=id)
-
-            # We keep the GPS coordinates as strings
-            graph.nodes[start_node]["longitude"] = start_lon
-            graph.nodes[start_node]["latitude"] = start_lat
-            graph.nodes[end_node]["longitude"] = end_lon
-            graph.nodes[end_node]["latitude"] = end_lat
-        except ValueError:
-            print("Skipping input row %d" % (row_number + 1))
-
-    return graph
-
-
 def graph_components(graph):
     # The graph may contain multiple components, but we can only handle one connected component. If the graph contains
     # more than one connected component, we only use the largest one.
@@ -100,7 +59,6 @@ def as_gpx(graph, track, name=None):
         gpx_name.appendChild(doc.createTextNode(name))
         root.appendChild(gpx_name)
 
-
     track_name = "Track"
     trk = doc.createElement("trk")
     trk_name = doc.createElement("name")
@@ -109,8 +67,8 @@ def as_gpx(graph, track, name=None):
     trkseg = doc.createElement("trkseg")
 
     for u in track:
-        longitude = graph.nodes[u].get("longitude")
-        latitude = graph.nodes[u].get("latitude")
+        longitude = graph.nodes[u]["node_obj"].lon
+        latitude = graph.nodes[u]["node_obj"].lat
         trkpt = doc.createElement("trkpt")
         trkpt.setAttribute("lat", str(latitude))
         trkpt.setAttribute("lon", str(longitude))
@@ -120,41 +78,6 @@ def as_gpx(graph, track, name=None):
     root.appendChild(trk)
 
     return doc.toxml()
-
-
-def write_csv(graph, nodes, out):
-    writer = csv.writer(out)
-    writer.writerow(
-        [
-            "Start Node",
-            "End Node",
-            "Segment Length",
-            "Segment ID",
-            "Start Longitude",
-            "Start Latitude",
-            "End Longitude",
-            "End Latitude",
-        ]
-    )
-    for u, v in pairs(nodes, False):
-        length = graph[u][v]["weight"]
-        id = graph[u][v]["id"]
-        start_latitude = graph.nodes[u].get("latitude")
-        start_longitude = graph.nodes[u].get("longitude")
-        end_latitude = graph.nodes[v].get("latitude")
-        end_longitude = graph.nodes[v].get("longitude")
-        writer.writerow(
-            [
-                u,
-                v,
-                length,
-                id,
-                start_longitude,
-                start_latitude,
-                end_longitude,
-                end_latitude,
-            ]
-        )
 
 
 def edge_sum(graph):
@@ -271,51 +194,3 @@ def chinese_postman_paths(graph, source, destination, n=20):
 
         paths.append((eulerian_graph, nodes))
     return paths
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="input CSV file", type=argparse.FileType("r"))
-    parser.add_argument("source", help="Source node id")
-    parser.add_argument("destination", help="Destination node id")
-    parser.add_argument("--gpx", help="GPX output file", type=argparse.FileType("w"))
-    parser.add_argument("--csv", help="CSV output file", type=argparse.FileType("w"))
-
-    args = parser.parse_args()
-
-    graph = import_csv_graph(args.input)
-    if graph.degree[args.source] != 1:
-        raise RuntimeError("Source must be vertex with degree 1")
-    if graph.degree[args.destination] != 1:
-        raise RuntimeError("Destination must be vertex with degree 1")
-    components = graph_components(graph)
-    if len(components) == 0:
-        raise ValueError("No graph components found; check input file")
-
-    # Only use the largest component
-    component = components[0]
-
-    paths = chinese_postman_paths(component, args.source, args.destination, n=1)
-
-    for eulerian_graph, nodes in paths:
-
-        in_length = edge_sum(graph) / 1000.0
-        path_length = edge_sum(eulerian_graph) / 1000.0
-        duplicate_length = path_length - in_length
-
-        print("Total length of roads: %.3f km" % in_length)
-        print("Total length of path: %.3f km" % path_length)
-        print("Length of sections visited twice: %.3f km" % duplicate_length)
-        print("Node sequence:", nodes)
-        print()
-
-    eulerian_graph, nodes = paths[0]  # The best one
-
-    if args.gpx:
-        args.gpx.write(as_gpx(graph, nodes))
-
-    if args.csv:
-        write_csv(graph, nodes, args.csv)
-
