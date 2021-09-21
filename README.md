@@ -9,7 +9,7 @@
 3) Select end node and tag it as `end=yes` 
 4) Save layer to osm file
 
-## Conversion to CSV and GPX
+## Usage
 
 1) Run 
 ```
