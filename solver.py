@@ -3,7 +3,7 @@ from typing import Dict
 
 import networkx as nx
 
-from osm2csv import parse_osm, Way, Node
+from osm import parse_osm, Way, Node
 from cpp import chinese_postman_paths, graph_components, edge_sum, as_gpx
 from utils import pairs
 
@@ -12,6 +12,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("osmfile", type=argparse.FileType("r"))
     parser.add_argument("gpxfile", type=argparse.FileType("w"))
+    parser.add_argument("--interpolate", type=int)
     return parser.parse_args()
 
 
@@ -54,7 +55,7 @@ def main():
     print("Total length of roads: %.3f km" % in_length)
     print("Total length of path: %.3f km" % path_length)
     print("Length of sections visited twice: %.3f km" % duplicate_length)
-    args.gpxfile.write(as_gpx(graph, nodes))
+    args.gpxfile.write(as_gpx(graph, nodes, interpolate_meters=args.interpolate))
 
 
 if __name__ == "__main__":

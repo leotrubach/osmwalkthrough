@@ -13,6 +13,13 @@ class Node(NamedTuple):
     def distance_to(self, other: "Node"):
         return geodesic((self.lat, self.lon), (other.lat, other.lon)).meters
 
+    def interpolate_to(self, other: "Node", meters: int):
+        distance = self.distance_to(other)
+        dlon = (other.lon - self.lon) * meters / distance
+        dlat = (other.lat - self.lat) * meters / distance
+        for i in range(int(distance / meters)):
+            yield Node(0, self.lat + dlat * i, self.lon + dlon * i)
+
 
 class Way(NamedTuple):
     id: int

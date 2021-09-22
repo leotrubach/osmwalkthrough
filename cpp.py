@@ -1,7 +1,10 @@
 import csv
+from typing import Optional
+
 import networkx as nx
 import xml.dom.minidom as minidom
 
+from osm import Node
 from utils import pairs
 
 
@@ -36,7 +39,13 @@ def odd_graph(graph, source, destination):
     return result
 
 
-def as_gpx(graph, track, name=None):
+def make_track_point(doc, node: Node):
+    trkpt = doc.createElement("trkpt")
+    trkpt.setAttribute("lat", str(node.lat))
+    trkpt.setAttribute("lon", str(node.lon))
+    return trkpt
+
+def as_gpx(graph, track, name=None, interpolate_meters=5):
     """
     Convert a list of tracks to GPX format
     Example:
@@ -66,13 +75,14 @@ def as_gpx(graph, track, name=None):
     trk.appendChild(trk_name)
     trkseg = doc.createElement("trkseg")
 
+    prev: Optional[Node] = None
     for u in track:
-        longitude = graph.nodes[u]["node_obj"].lon
-        latitude = graph.nodes[u]["node_obj"].lat
-        trkpt = doc.createElement("trkpt")
-        trkpt.setAttribute("lat", str(latitude))
-        trkpt.setAttribute("lon", str(longitude))
-        trkseg.appendChild(trkpt)
+        node: Node = graph.nodes[u]["node_obj"]
+        if interpolate_meters and prev:
+            for intermediate_node in prev.interpolate_to(node, meters=interpolate_meters):
+                trkseg.appendChild(make_track_point(doc, intermediate_node))
+        trkseg.appendChild(make_track_point(doc, node))
+        prev = node
 
     trk.appendChild(trkseg)
     root.appendChild(trk)
