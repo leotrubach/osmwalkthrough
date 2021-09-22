@@ -12,7 +12,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("osmfile", type=argparse.FileType("r"))
     parser.add_argument("gpxfile", type=argparse.FileType("w"))
-    parser.add_argument("--interpolate", type=int)
+    parser.add_argument("--interpolate", type=int, default=5)
     return parser.parse_args()
 
 
