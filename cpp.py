@@ -1,10 +1,9 @@
-import csv
 from typing import Optional
 
 import networkx as nx
 import xml.dom.minidom as minidom
 
-from osm import Node
+from structs import Solution, Node
 from utils import pairs
 
 
@@ -45,28 +44,16 @@ def make_track_point(doc, node: Node):
     trkpt.setAttribute("lon", str(node.lon))
     return trkpt
 
-def as_gpx(graph, track, name=None, interpolate_meters=5):
+
+def as_gpx(solution: Solution, interpolate_meters=5):
     """
     Convert a list of tracks to GPX format
-    Example:
-
-    >>> g = nx.Graph()
-    >>> g.add_node(1, latitude="31.1", longitude="-18.1")
-    >>> g.add_node(2, latitude="31.2", longitude="-18.2")
-    >>> g.add_node(3, latitude="31.3", longitude="-18.3")
-    >>> print(as_gpx(g, [{'points': [1,2,3]}]))
-    <?xml version="1.0" ?><gpx version="1.0"><trk><name>Track 1</name><number>1</number><trkseg><trkpt lat="31.1" lon="-18.1"><ele>1</ele></trkpt><trkpt lat="31.2" lon="-18.2"><ele>2</ele></trkpt><trkpt lat="31.3" lon="-18.3"><ele>3</ele></trkpt></trkseg></trk></gpx>
     """
     doc = minidom.Document()
 
     root = doc.createElement("gpx")
     root.setAttribute("version", "1.0")
     doc.appendChild(root)
-
-    if name:
-        gpx_name = doc.createElement("name")
-        gpx_name.appendChild(doc.createTextNode(name))
-        root.appendChild(gpx_name)
 
     track_name = "Track"
     trk = doc.createElement("trk")
@@ -76,8 +63,8 @@ def as_gpx(graph, track, name=None, interpolate_meters=5):
     trkseg = doc.createElement("trkseg")
 
     prev: Optional[Node] = None
-    for u in track:
-        node: Node = graph.nodes[u]["node_obj"]
+    for u in solution.nodes:
+        node: Node = solution.graph.nodes[u]["node_obj"]
         if interpolate_meters and prev:
             for intermediate_node in prev.interpolate_to(node, meters=interpolate_meters):
                 trkseg.appendChild(make_track_point(doc, intermediate_node))
@@ -88,13 +75,6 @@ def as_gpx(graph, track, name=None, interpolate_meters=5):
     root.appendChild(trk)
 
     return doc.toxml()
-
-
-def edge_sum(graph):
-    total = 0
-    for u, v, data in graph.edges(data=True):
-        total += data["weight"]
-    return total
 
 
 def matching_cost(graph, matching):

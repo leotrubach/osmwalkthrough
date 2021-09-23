@@ -1,32 +1,9 @@
 import xml.etree.ElementTree
-from typing import NamedTuple, List
-from geopy.distance import geodesic
+
+from structs import Node, Way, ParseResult
 
 
-class Node(NamedTuple):
-    id: int
-    lat: float
-    lon: float
-    start: bool = False
-    end: bool = False
-
-    def distance_to(self, other: "Node"):
-        return geodesic((self.lat, self.lon), (other.lat, other.lon)).meters
-
-    def interpolate_to(self, other: "Node", meters: int):
-        distance = self.distance_to(other)
-        dlon = (other.lon - self.lon) * meters / distance
-        dlat = (other.lat - self.lat) * meters / distance
-        for i in range(int(distance / meters)):
-            yield Node(0, self.lat + dlat * i, self.lon + dlon * i)
-
-
-class Way(NamedTuple):
-    id: int
-    nodes: List[Node]
-
-
-def parse_node(node_element):
+def parse_node(node_element) -> Node:
     attrs = node_element.attrib
     node_attrs = {
         "id": int(attrs["id"]),
@@ -43,10 +20,10 @@ def parse_node(node_element):
     return node
 
 
-def parse_osm(xml_file):
+def parse_osm(xml_file) -> ParseResult:
     tree = xml.etree.ElementTree.fromstring(xml_file.read())
     nodes = {}
-    ways = {}
+    ways = []
     for child in tree:
         if child.tag == "node":
             node = parse_node(child)
@@ -54,10 +31,15 @@ def parse_osm(xml_file):
         if child.tag == "way":
             attrs = child.attrib
             way_nodes = []
+            optional = False
             for child_node in child:
-                way_nodes.append(nodes[int(child_node.attrib["ref"])])
-                way = Way(id=int(attrs["id"]), nodes=way_nodes)
-                ways[way.id] = way
+                if child_node.tag == "nd":
+                    way_nodes.append(nodes[int(child_node.attrib["ref"])])
+                elif child_node.tag == "tag":
+                    if child_node.attrib["k"] == "optional" and child_node.attrib["v"] == "yes":
+                        optional = True
+            way = Way(id=int(attrs["id"]), nodes=way_nodes, optional=optional)
+            ways.append(way)
     start_nodes = [node for node in nodes.values() if node.start]
     end_nodes = [node for node in nodes.values() if node.end]
     if len(start_nodes) > 1:
@@ -66,4 +48,4 @@ def parse_osm(xml_file):
         raise RuntimeError("There should be exactly one node with tag end=yes")
     start_node = start_nodes[0]
     end_node = end_nodes[0]
-    return ways, start_node.id, end_node.id
+    return ParseResult(ways=ways, start_id=start_node.id, end_id=end_node.id)

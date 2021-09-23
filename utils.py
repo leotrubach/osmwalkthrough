@@ -19,3 +19,10 @@ def pairs(lst: List[T], circular=False) -> Iterable[Tuple[T, T]]:
         prev = item
     if circular:
         yield item, first
+
+
+def edge_sum(graph):
+    total = 0
+    for u, v, data in graph.edges(data=True):
+        total += data["weight"]
+    return total
