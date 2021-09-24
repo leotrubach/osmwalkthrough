@@ -17,8 +17,9 @@ of ways and choose the shortest one.
 
 1) Run 
 ```
-python solver.py <osmfile> <gpxfile>
+python solver.py <osmfile> <gpxfile> --interpolate <meters>
 ```
 where 
  - *osmfile* is path to osm file saved on step 4 of previous section
  - *csvfile* is path to output gpx file to produce
+ - *meters* number of meters to interpolate (default=5)
